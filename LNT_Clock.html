@@ -1,0 +1,2117 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LNT_Clock</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        /* Base styles for dark mode */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #0d1222; /* Dark background */
+            color: #e0e6f0; /* Light text */
+        }
+        .app-container {
+            width: 100%;
+            max-width: 420px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #1a202d; /* Darker container background */
+            border-radius: 1.5rem;
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.2), 0 5px 10px -5px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        /* Navigation Buttons */
+        .nav-button {
+            flex-grow: 1;
+            padding: 1.1rem 0.6rem;
+            border-radius: 0.75rem;
+            transition: background-color 0.2s, color 0.2s, transform 0.1s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #9aa7b9; /* Slightly desaturated text */
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+        .nav-button.active {
+            background-color: #4a90e2; /* Vibrant blue for active */
+            color: #FFFFFF;
+            box-shadow: 0 4px 10px -2px rgba(74, 144, 226, 0.3);
+            transform: translateY(-2px);
+        }
+        .nav-button:not(.active):hover {
+            background-color: #2c3445; /* Darker on hover */
+            color: #c9d2e1; /* Lighter text on hover */
+        }
+        .nav-button .icon {
+            font-size: 1.6rem;
+            margin-bottom: 0.35rem;
+        }
+
+        /* Feature Buttons (Home Screen) */
+        .feature-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.75rem;
+            border-radius: 1.25rem;
+            cursor: pointer;
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+            background-color: #4a90e2; /* Default blue */
+            color: #FFFFFF;
+            font-weight: 700;
+            text-align: center;
+            box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.15);
+        }
+        .feature-button:hover {
+            transform: translateY(-7px) scale(1.02);
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.25);
+            background-color: #3b82f6; /* Slightly darker blue on hover */
+        }
+        .feature-button .icon {
+            font-size: 3.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Alarm List Items */
+        .alarm-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.2rem 1rem;
+            background-color: #2c3445; /* Slightly lighter than app-container */
+            border-radius: 0.8rem;
+            margin-bottom: 0.8rem;
+            box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.2s ease-in-out;
+        }
+        .alarm-item:hover {
+            background-color: #384258; /* Darker on hover */
+        }
+        .alarm-time {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #f0f4f8; /* Lightest text for time */
+            letter-spacing: -0.02em;
+        }
+        /* Toggle Switch for Alarms/Theme */
+        .alarm-toggle {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 30px;
+        }
+        .alarm-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .alarm-toggle .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #6a7c93; /* Gray for off state */
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .alarm-toggle .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        .alarm-toggle input:checked + .slider {
+            background-color: #4a90e2; /* Blue for on state */
+        }
+        .alarm-toggle input:focus + .slider {
+            box-shadow: 0 0 1px #4a90e2;
+        }
+        .alarm-toggle input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+
+        /* Modal Overlays */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8); /* Semi-transparent black */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: #1a202d; /* Dark container background */
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            width: 90%;
+            max-width: 450px;
+            transform: scale(0.95);
+            transition: transform 0.3s ease-out;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        .modal-content button {
+            padding: 0.8rem 1.8rem;
+            border-radius: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+        }
+        .modal-content button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+        }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2c3445; /* Dark mode scroll track */
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a90e2; /* Blue scroll thumb */
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3b82f6; /* Darker blue on hover */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 antialiased">
+    <div class="app-container">
+        <header class="p-6 text-center">
+            <h1 class="text-4xl font-bold text-blue-400">LNT_Clock</h1>
+        </header>
+
+        <main id="app-content" class="flex-grow p-6 overflow-y-auto">
+        </main>
+
+        <nav class="flex justify-around items-center bg-gray-800 p-2 border-t border-gray-700">
+            <button id="nav-trang-chu" class="nav-button active">
+                <span class="icon">🏠</span>
+                <span>Trang Chủ</span>
+            </button>
+            <button id="nav-cai-dat" class="nav-button">
+                <span class="icon">⚙️</span>
+                <span>Cài Đặt</span>
+            </button>
+        </nav>
+    </div>
+
+    <div id="alarm-modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="text-3xl font-bold text-red-500 mb-4">Báo thức!</h2>
+            <p id="alarm-modal-time" class="text-5xl font-extrabold mb-6"></p>
+            <p id="alarm-modal-label" class="text-xl mb-8"></p>
+            <div class="flex justify-center space-x-4">
+                <button id="alarm-dismiss-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200">
+                    Tắt
+                </button>
+                <button id="alarm-snooze-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200">
+                    Báo lại (<span id="alarm-snooze-duration-display">5</span> phút)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="timetable-modal-overlay" class="modal-overlay">
+        <div class="modal-content text-left">
+            <h2 class="text-2xl font-bold text-blue-400 mb-4">Thêm Môn Học</h2>
+            <p class="text-gray-300 text-sm font-bold mb-4">Ngày: <span id="timetable-modal-day-display" class="text-white"></span></p>
+
+            <div class="mb-4">
+                <label for="timetable-period-select" class="block text-gray-300 text-sm font-bold mb-2">Chọn Tiết:</label>
+                <select id="timetable-period-select" class="w-full p-3 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </select>
+            </div>
+            <div class="mb-6">
+                <label class="block text-gray-300 text-sm font-bold mb-2">Chọn Môn Học:</label>
+                <select id="timetable-subject-select" class="w-full p-3 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </select>
+            </div>
+            <div class="flex justify-end space-x-4">
+                <button id="cancel-timetable-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200">Hủy</button>
+                <button id="save-timetable-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+<div id="homework-modal-overlay" class="modal-overlay">
+    <div class="modal-content">
+        <h2 class="text-2xl font-bold text-green-400 mb-4">Thêm Bài Tập Mới</h2>
+        <div class="mb-4 text-left">
+            <label for="homework-date" class="block text-gray-300 text-sm font-bold mb-2">Ngày thêm:</label>
+            <input type="date" id="homework-date" class="w-full p-3 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+        </div>
+        <div class="mb-4 text-left">
+            <label for="homework-subject-select" class="block text-gray-300 text-sm font-bold mb-2">Môn:</label>
+            <select id="homework-subject-select" class="w-full p-3 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+            </select>
+        </div>
+        <div class="mb-6 text-left">
+            <label for="homework-content" class="block text-gray-300 text-sm font-bold mb-2">Nội dung:</label>
+            <textarea id="homework-content" placeholder="Mô tả bài tập..." rows="4" class="w-full p-3 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"></textarea>
+        </div>
+        <div class="flex justify-end space-x-4">
+            <button id="cancel-homework-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200">Hủy</button>
+            <button id="save-homework-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200">Lưu Bài Tập</button>
+        </div>
+    </div>
+</div>
+
+<div id="homework-reminder-modal-overlay" class="modal-overlay">
+    <div class="modal-content">
+        <h2 class="text-3xl font-bold text-green-500 mb-4">Nhắc nhở Bài Tập!</h2>
+        <p id="homework-reminder-modal-subject" class="text-2xl font-bold mb-2"></p>
+        <p id="homework-reminder-modal-content" class="text-xl mb-6"></p>
+        <div class="flex justify-center space-x-4">
+            <button id="homework-reminder-dismiss-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200">
+                Tắt
+            </button>
+            <button id="homework-reminder-snooze-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200">
+                Báo lại (<span id="homework-snooze-duration-display">5</span> phút)
+            </button>
+        </div>
+    </div>
+</div>
+
+    <script>
+        const appContent = document.getElementById('app-content');
+        const navButtons = document.querySelectorAll('.nav-button');
+        const alarmModalOverlay = document.getElementById('alarm-modal-overlay');
+        const alarmModalTime = document.getElementById('alarm-modal-time');
+        const alarmModalLabel = document.getElementById('alarm-modal-label');
+        const alarmDismissBtn = document.getElementById('alarm-dismiss-btn');
+        const alarmSnoozeBtn = document.getElementById('alarm-snooze-btn');
+        const alarmSnoozeDurationDisplay = document.getElementById('alarm-snooze-duration-display');
+
+        const homeworkReminderModalOverlay = document.getElementById('homework-reminder-modal-overlay');
+        const homeworkReminderModalSubject = document.getElementById('homework-reminder-modal-subject');
+        const homeworkReminderModalContent = document.getElementById('homework-reminder-modal-content');
+        const homeworkReminderDismissBtn = document.getElementById('homework-reminder-dismiss-btn');
+        const homeworkReminderSnoozeBtn = document.getElementById('homework-reminder-snooze-btn');
+        const homeworkSnoozeDurationDisplay = document.getElementById('homework-snooze-duration-display');
+
+
+        let activeContentTab = 'trang-chu';
+        let alarms = [];
+        let alarmSound = null;
+        let currentRingingAlarmId = null;
+        let homeworkReminderCheckInterval = null;
+        let dailyTimetableReminderCheckInterval = null;
+        let currentRingingHomeworkId = null;
+
+
+        let stopwatchInterval = null;
+        let stopwatchStartTime = 0;
+        let stopwatchElapsedTime = 0;
+        let isStopwatchRunning = false;
+        let lapTimes = [];
+
+        const updateStopwatchDisplay = () => {
+            const now = Date.now();
+            stopwatchElapsedTime = isStopwatchRunning ? now - stopwatchStartTime : stopwatchElapsedTime;
+
+            const totalSeconds = Math.floor(stopwatchElapsedTime / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            const milliseconds = Math.floor((stopwatchElapsedTime % 1000) / 10);
+
+            const displayHours = String(hours).padStart(2, '0');
+            const displayMinutes = String(minutes).padStart(2, '0');
+            const displaySeconds = String(seconds).padStart(2, '0');
+            const displayMilliseconds = String(milliseconds).padStart(2, '0');
+
+            const stopwatchDisplay = document.getElementById('stopwatch-display');
+            if (stopwatchDisplay) {
+                stopwatchDisplay.textContent = `${displayHours}:${displayMinutes}:${displaySeconds}.${displayMilliseconds}`;
+            }
+        };
+
+        const toggleStopwatch = () => {
+            const startStopBtn = document.getElementById('stopwatch-start-stop-btn');
+            if (!startStopBtn) return;
+
+            if (isStopwatchRunning) {
+                clearInterval(stopwatchInterval);
+                isStopwatchRunning = false;
+                startStopBtn.textContent = 'Tiếp tục';
+                startStopBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                startStopBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            } else {
+                stopwatchStartTime = Date.now() - stopwatchElapsedTime;
+                stopwatchInterval = setInterval(updateStopwatchDisplay, 10);
+                isStopwatchRunning = true;
+                startStopBtn.textContent = 'Dừng';
+                startStopBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                startStopBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+            }
+            updateStopwatchDisplay();
+        };
+
+        const resetStopwatch = () => {
+            clearInterval(stopwatchInterval);
+            stopwatchStartTime = 0;
+            stopwatchElapsedTime = 0;
+            isStopwatchRunning = false;
+            lapTimes = [];
+            updateStopwatchDisplay();
+            renderLapTimesUI();
+
+            const startStopBtn = document.getElementById('stopwatch-start-stop-btn');
+            if (startStopBtn) {
+                startStopBtn.textContent = 'Bắt đầu';
+                startStopBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                startStopBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            }
+        };
+
+        const recordLap = () => {
+            if (stopwatchElapsedTime > 0) {
+                const lapNumber = lapTimes.length + 1;
+                const totalSeconds = Math.floor(stopwatchElapsedTime / 1000);
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                const milliseconds = Math.floor((stopwatchElapsedTime % 1000) / 10);
+
+                const displayHours = String(hours).padStart(2, '0');
+                const displayMinutes = String(minutes).padStart(2, '0');
+                const displaySeconds = String(seconds).padStart(2, '0');
+                const displayMilliseconds = String(milliseconds).padStart(2, '0');
+
+                lapTimes.push({
+                    number: lapNumber,
+                    time: `${displayHours}:${displayMinutes}:${displaySeconds}.${displayMilliseconds}`
+                });
+                renderLapTimesUI();
+            }
+        };
+
+        const renderLapTimesUI = () => {
+            const lapTimesListDiv = document.getElementById('lap-times-list');
+            if (!lapTimesListDiv) return;
+
+            if (lapTimes.length === 0) {
+                lapTimesListDiv.innerHTML = `<p class="text-gray-400 text-center">Chưa có mốc tách nào.</p>`;
+                return;
+            }
+
+            lapTimesListDiv.innerHTML = lapTimes.slice().reverse().map(lap => `
+                <div class="flex justify-between items-center p-3 bg-gray-800 rounded-lg mb-2">
+                    <span class="text-lg text-gray-300">Tách ${lap.number}:</span>
+                    <span class="text-xl font-bold text-white">${lap.time}</span>
+                </div>
+            `).join('');
+
+            lapTimesListDiv.scrollTop = lapTimesListDiv.scrollHeight;
+        };
+
+        const setupStopwatchListeners = () => {
+            const startStopBtn = document.getElementById('stopwatch-start-stop-btn');
+            const resetBtn = document.getElementById('stopwatch-reset-btn');
+            const lapBtn = document.getElementById('stopwatch-lap-btn');
+
+            if (startStopBtn) {
+                startStopBtn.onclick = toggleStopwatch;
+            }
+            if (resetBtn) {
+                resetBtn.onclick = resetStopwatch;
+            }
+            if (lapBtn) {
+                lapBtn.onclick = recordLap;
+            }
+            updateStopwatchDisplay();
+            renderLapTimesUI();
+        };
+
+        const cleanupStopwatch = () => {
+            clearInterval(stopwatchInterval);
+            stopwatchInterval = null;
+        };
+
+
+        let worldClockInterval = null;
+        const ALL_TIMEZONES = Intl.supportedValuesOf('timeZone');
+        let pinnedTimezones = [];
+        const MAX_PINNED_TIMEZONES = 10;
+
+        const getPinnedTimezones = () => {
+            const storedPinned = localStorage.getItem('lnt_pinned_timezones');
+            return storedPinned ? JSON.parse(storedPinned) : [];
+        };
+
+        const savePinnedTimezones = (updatedPinned) => {
+            localStorage.setItem('lnt_pinned_timezones', JSON.stringify(updatedPinned));
+        };
+
+        const updateWorldClockDisplay = () => {
+            const options = {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+
+            const hcmTimeElement = document.getElementById('hcm-time');
+            if (hcmTimeElement) {
+                const now = new Date();
+                const formatter = new Intl.DateTimeFormat('vi-VN', {
+                    ...options,
+                    timeZone: 'Asia/Ho_Chi_Minh'
+                });
+                hcmTimeElement.textContent = formatter.format(now);
+            }
+
+            const pinnedListDiv = document.getElementById('pinned-timezones-list');
+            if (pinnedListDiv) {
+                pinnedTimezones = getPinnedTimezones();
+
+                let dynamicPinnedContentDiv = pinnedListDiv.querySelector('#dynamic-pinned-content');
+                if (!dynamicPinnedContentDiv) {
+                    dynamicPinnedContentDiv = document.createElement('div');
+                    dynamicPinnedContentDiv.id = 'dynamic-pinned-content';
+                    dynamicPinnedContentDiv.className = 'space-y-3';
+                    const hcmDiv = pinnedListDiv.querySelector('.flex.justify-between.items-center.bg-gray-800.p-4.rounded-lg.shadow-md');
+                    if (hcmDiv) {
+                        hcmDiv.after(dynamicPinnedContentDiv);
+                    } else {
+                        pinnedListDiv.appendChild(dynamicPinnedContentDiv);
+                    }
+                }
+
+                if (pinnedTimezones.length === 0) {
+                    dynamicPinnedContentDiv.innerHTML = `<p class="text-gray-400 text-center" id="no-pinned-message">Chưa có múi giờ nào được ghim.</p>`;
+                } else {
+                    const noPinnedMessage = document.getElementById('no-pinned-message');
+                    if (noPinnedMessage) noPinnedMessage.remove();
+
+                    const pinnedHtml = pinnedTimezones.map(tz => {
+                        const now = new Date();
+                        const formatter = new Intl.DateTimeFormat('en-US', {
+                            ...options,
+                            timeZone: tz
+                        });
+                        const formattedTime = formatter.format(now);
+                        const displayLabel = tz.replace(/_/g, ' ').split('/').pop();
+
+                        return `
+                            <div class="flex justify-between items-center bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-200 hover:bg-gray-700">
+                                <span class="text-xl text-gray-300">${displayLabel}:</span>
+                                <div class="flex items-center space-x-3">
+                                    <span class="text-3xl font-bold text-white">${formattedTime}</span>
+                                    <button data-timezone="${tz}" data-action="unpin" class="text-red-400 hover:text-red-300 p-1 rounded-full hover:bg-gray-600 transition-colors duration-200">
+                                        ❌
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    dynamicPinnedContentDiv.innerHTML = pinnedHtml;
+                }
+            }
+        };
+
+
+        const addPinnedTimezone = (timezone) => {
+            pinnedTimezones = getPinnedTimezones();
+            if (pinnedTimezones.length >= MAX_PINNED_TIMEZONES) {
+                showCustomAlert(`Chỉ có thể ghim tối đa ${MAX_PINNED_TIMEZONES} múi giờ.`, true);
+                return;
+            }
+            if (!pinnedTimezones.includes(timezone)) {
+                pinnedTimezones.push(timezone);
+                savePinnedTimezones(pinnedTimezones);
+                updateWorldClockDisplay();
+                showCustomAlert(`Đã ghim múi giờ ${timezone.replace(/_/g, ' ').split('/').pop()}.`);
+            } else {
+                showCustomAlert(`Múi giờ ${timezone.replace(/_/g, ' ').split('/').pop()} đã được ghim rồi.`, true);
+            }
+        };
+
+        const removePinnedTimezone = (timezone) => {
+            pinnedTimezones = getPinnedTimezones();
+            const index = pinnedTimezones.indexOf(timezone);
+            if (index > -1) {
+                pinnedTimezones.splice(index, 1);
+                savePinnedTimezones(pinnedTimezones);
+                updateWorldClockDisplay();
+                showCustomAlert(`Đã bỏ ghim múi giờ ${timezone.replace(/_/g, ' ').split('/').pop()}.`);
+            }
+        };
+
+        const handleTimezoneSearch = () => {
+            const searchInput = document.getElementById('timezone-search-input');
+            const searchResultsDiv = document.getElementById('timezone-search-results');
+            if (!searchInput || !searchResultsDiv) return;
+
+            const query = searchInput.value.toLowerCase();
+            searchResultsDiv.innerHTML = '';
+
+            if (query.length < 2) {
+                searchResultsDiv.innerHTML = `<p class="text-gray-400 text-center">Nhập ít nhất 2 ký tự để tìm kiếm.</p>`;
+                return;
+            }
+
+            const filteredTimezones = ALL_TIMEZONES.filter(tz =>
+                tz.toLowerCase().includes(query)
+            );
+
+            if (filteredTimezones.length === 0) {
+                searchResultsDiv.innerHTML = `<p class="text-gray-400 text-center">Không tìm thấy múi giờ nào.</p>`;
+                return;
+            }
+
+            searchResultsDiv.innerHTML = filteredTimezones.slice(0, 20).map(tz => {
+                const displayLabel = tz.replace(/_/g, ' ').split('/').slice(1).join(', ') || tz;
+                const buttonText = pinnedTimezones.includes(tz) ? 'Bỏ ghim' : 'Ghim';
+                const buttonColor = pinnedTimezones.includes(tz) ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700';
+                const buttonAction = pinnedTimezones.includes(tz) ? 'unpin-search' : 'pin-search';
+
+                return `
+                    <div class="flex justify-between items-center bg-gray-800 p-3 rounded-lg mb-2">
+                        <span class="text-lg text-white">${displayLabel}</span>
+                        <button data-timezone="${tz}" data-action="${buttonAction}" class="${buttonColor} text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200">
+                            ${buttonText}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        const handleWorldClockAction = (event) => {
+            const target = event.target;
+            const timezone = target.dataset.timezone;
+            const action = target.dataset.action;
+
+            if (timezone && action) {
+                if (action === 'pin-search') {
+                    addPinnedTimezone(timezone);
+                    handleTimezoneSearch();
+                } else if (action === 'unpin' || action === 'unpin-search') {
+                    removePinnedTimezone(timezone);
+                    handleTimezoneSearch();
+                }
+            }
+        };
+
+        const setupWorldClockListeners = () => {
+            pinnedTimezones = getPinnedTimezones();
+            updateWorldClockDisplay();
+            worldClockInterval = setInterval(updateWorldClockDisplay, 1000);
+
+            const searchInput = document.getElementById('timezone-search-input');
+            const searchResultsDiv = document.getElementById('timezone-search-results');
+            const pinnedListDiv = document.getElementById('pinned-timezones-list');
+
+
+            if (searchInput) {
+                searchInput.addEventListener('input', handleTimezoneSearch);
+            }
+            if (searchResultsDiv) {
+                searchResultsDiv.addEventListener('click', handleWorldClockAction);
+            }
+            if (pinnedListDiv) {
+                pinnedListDiv.addEventListener('click', handleWorldClockAction);
+            }
+        };
+
+        const cleanupWorldClock = () => {
+            clearInterval(worldClockInterval);
+            worldClockInterval = null;
+        };
+
+
+        const daysOfWeekFull = {
+            'Mon': 'Thứ 2',
+            'Tue': 'Thứ 3',
+            'Wed': 'Thứ 4',
+            'Thu': 'Thứ 5',
+            'Fri': 'Thứ 6',
+            'Sat': 'Thứ 7',
+            'Sun': 'Chủ Nhật'
+        };
+        const periods = {
+            'S1': '07:00', 'S2': '07:45', 'S3': '08:55', 'S4': '09:40', 'S5': '10:40',
+            'C1': '13:30', 'C2': '14:15', 'C3': '15:20', 'C4': '16:50'
+        };
+
+        const subjects = [
+            'Toán', 'Vật Lý', 'Hóa Học', 'Sinh Học', 'Lịch Sử', 'Địa Lý', 'Ngoại Ngữ',
+            'TANN', 'MOS', 'Tin Học', 'Ngữ Văn', 'GDĐP', 'GD KT - PL', 'Công Nghệ',
+            'Chào Cờ', 'STEM', 'Thể Dục', 'GD QP - AN', 'Âm Nhạc', 'Mỹ Thuật', 'HĐTN'
+        ];
+
+
+        let timetables = {};
+        let homeworks = [];
+        const getTimetables = () => {
+            const storedTimetables = localStorage.getItem('lnt_timetables');
+            return storedTimetables ? JSON.parse(storedTimetables) : {};
+        };
+
+        const saveTimetables = () => {
+            localStorage.setItem('lnt_timetables', JSON.stringify(timetables));
+        };
+
+        const renderTimetableUI = () => {
+            const timetableSectionsDiv = document.getElementById('timetable-sections');
+            if (!timetableSectionsDiv) return;
+
+            timetables = getTimetables();
+
+            let timetableHtml = '';
+            for (const dayKey in daysOfWeekFull) {
+                const dayName = daysOfWeekFull[dayKey];
+                const dayEntries = timetables[dayKey] || [];
+                
+                dayEntries.sort((a, b) => {
+                    const aIsMorning = a.period.startsWith('S');
+                    const bIsMorning = b.period.startsWith('S');
+                    const aPeriodNum = parseInt(a.period.substring(1));
+                    const bPeriodNum = parseInt(b.period.substring(1));
+
+                    if (aIsMorning && !bIsMorning) return -1;
+                    if (!aIsMorning && bIsMorning) return 1;
+                    return aPeriodNum - bPeriodNum;
+                });
+
+                const entriesHtml = dayEntries.length === 0
+                    ? `<p class="text-gray-500 text-sm">Chưa có môn học nào.</p>`
+                    : dayEntries.map(entry => {
+                        const timeDisplay = periods[entry.period] || '';
+                        const periodDisplay = entry.period.startsWith('S') ? `Sáng, Tiết ${entry.period.substring(1)}` : `Chiều, Tiết ${entry.period.substring(1)}`;
+                        return `
+                            <div class="flex justify-between items-center bg-gray-900 p-2 rounded-md text-sm">
+                                <span class="text-white">${periodDisplay} - ${timeDisplay} - ${entry.subject}</span>
+                                <button data-id="${entry.id}" data-day="${dayKey}" data-action="delete-timetable-entry" class="text-red-400 hover:text-red-300 p-1">❌</button>
+                            </div>
+                        `;
+                    }).join('');
+
+                timetableHtml += `
+                    <div class="p-3 bg-gray-800 rounded-lg shadow-inner">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-xl font-bold text-gray-300">${dayName}</h4>
+                            <button data-day="${dayKey}" data-action="add-timetable-entry" class="text-blue-400 hover:text-blue-300 text-2xl font-bold p-1 rounded-full hover:bg-gray-700 transition-colors duration-200">
+                                +
+                            </button>
+                        </div>
+                        <div id="timetable-list-${dayKey}" class="space-y-1">
+                            ${entriesHtml}
+                        </div>
+                    </div>
+                `;
+            }
+            timetableSectionsDiv.innerHTML = timetableHtml;
+        };
+
+        const populateTimetableModalDropdowns = () => {
+            const periodSelect = document.getElementById('timetable-period-select');
+            const subjectSelect = document.getElementById('timetable-subject-select');
+
+            if (periodSelect) {
+                periodSelect.innerHTML = '';
+                for (let i = 1; i <= 5; i++) {
+                    periodSelect.innerHTML += `<option value="S${i}">Sáng, Tiết ${i}</option>`;
+                }
+                for (let i = 1; i <= 4; i++) {
+                    periodSelect.innerHTML += `<option value="C${i}">Chiều, Tiết ${i}</option>`;
+                }
+            }
+
+            if (subjectSelect) {
+                subjectSelect.innerHTML = '';
+                subjects.forEach(subject => {
+                    subjectSelect.innerHTML += `<option value="${subject}">${subject}</option>`;
+                });
+            }
+        };
+
+        const showTimetableModal = (day) => {
+            const timetableModalOverlay = document.getElementById('timetable-modal-overlay');
+            const timetableModalDayDisplay = document.getElementById('timetable-modal-day-display');
+
+            if (timetableModalOverlay && timetableModalDayDisplay) {
+                timetableModalDayDisplay.textContent = daysOfWeekFull[day];
+                timetableModalOverlay.dataset.day = day;
+                populateTimetableModalDropdowns();
+                timetableModalOverlay.classList.add('active');
+            }
+        };
+
+        const handleSaveTimetableEntry = () => {
+            const timetableModalOverlay = document.getElementById('timetable-modal-overlay');
+            const day = timetableModalOverlay.dataset.day;
+            const period = document.getElementById('timetable-period-select').value;
+            const subject = document.getElementById('timetable-subject-select').value;
+
+            if (!period || !subject) {
+                showCustomAlert("Vui lòng chọn đầy đủ Tiết và Môn học.", true);
+                return;
+            }
+
+            const newEntry = {
+                id: Date.now().toString(),
+                period: period,
+                subject: subject
+            };
+
+            if (!timetables[day]) {
+                timetables[day] = [];
+            }
+            
+            const isDuplicatePeriod = timetables[day].some(entry => entry.period === period);
+            if (isDuplicatePeriod) {
+                showCustomAlert(`Tiết ${period.startsWith('S') ? `Sáng, Tiết ${period.substring(1)}` : `Chiều, Tiết ${period.substring(1)}`} đã có môn học khác trong ngày này.`, true);
+                return;
+            }
+
+            timetables[day].push(newEntry);
+            saveTimetables();
+            renderTimetableUI();
+            hideTimetableModal();
+            showCustomAlert("Đã thêm môn học vào thời khóa biểu.");
+        };
+
+        const hideTimetableModal = () => {
+            document.getElementById('timetable-modal-overlay').classList.remove('active');
+        };
+
+        const deleteTimetableEntry = (dayKey, entryId) => {
+            showCustomAlert(
+                'Bạn có chắc muốn xóa môn học này?',
+                false,
+                'Xác nhận xóa',
+                () => {
+                    timetables[dayKey] = timetables[dayKey].filter(entry => entry.id !== entryId);
+                    saveTimetables();
+                    renderTimetableUI();
+                    showCustomAlert("Đã xóa môn học.");
+                },
+                null,
+                true
+            );
+        };
+
+        const getHomeworks = () => {
+            const storedHomeworks = localStorage.getItem('lnt_homeworks');
+            return storedHomeworks ? JSON.parse(storedHomeworks) : [];
+        };
+
+        const saveHomeworks = () => {
+            localStorage.setItem('lnt_homeworks', JSON.stringify(homeworks));
+        };
+
+        const renderHomeworkUI = () => {
+            const homeworkListDiv = document.getElementById('homework-list');
+            if (!homeworkListDiv) return;
+
+            homeworks = getHomeworks();
+
+            if (homeworks.length === 0) {
+                homeworkListDiv.innerHTML = `<p class="text-gray-400 text-center" id="no-homework-message">Chưa có bài tập nào.</p>`;
+                return;
+            }
+            
+            const homeworkItemsHtml = homeworks.sort((a, b) => new Date(b.date) - new Date(a.date)).map(hw => `
+                <div class="bg-gray-800 p-4 rounded-lg shadow-md flex justify-between items-center group">
+                    <div>
+                        <p class="text-sm text-gray-400">${hw.date}</p>
+                        <p class="text-lg font-bold text-white">${hw.subject}</p>
+                        <p class="text-md text-gray-300">${hw.content}</p>
+                    </div>
+                    <button data-id="${hw.id}" data-action="delete-homework" class="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2">
+                        ❌
+                    </button>
+                </div>
+            `).join('');
+
+            homeworkListDiv.innerHTML = homeworkItemsHtml;
+        };
+
+        const populateHomeworkModalDropdowns = () => {
+            const subjectSelect = document.getElementById('homework-subject-select');
+            if (subjectSelect) {
+                subjectSelect.innerHTML = '';
+                subjects.forEach(subject => {
+                    subjectSelect.innerHTML += `<option value="${subject}">${subject}</option>`;
+                });
+            }
+        };
+
+        const showHomeworkModal = () => {
+            const homeworkModalOverlay = document.getElementById('homework-modal-overlay');
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('homework-date').value = today;
+            document.getElementById('homework-content').value = '';
+            populateHomeworkModalDropdowns();
+            if (homeworkModalOverlay) {
+                homeworkModalOverlay.classList.add('active');
+            }
+        };
+
+        const hideHomeworkModal = () => {
+            document.getElementById('homework-modal-overlay').classList.remove('active');
+        };
+
+        const handleSaveHomework = () => {
+            const homeworkDate = document.getElementById('homework-date').value;
+            const homeworkSubject = document.getElementById('homework-subject-select').value;
+            const homeworkContent = document.getElementById('homework-content').value.trim();
+
+            if (!homeworkDate || !homeworkSubject || !homeworkContent) {
+                showCustomAlert("Vui lòng nhập đầy đủ thông tin bài tập (Ngày, Môn, Nội dung).", true);
+                return;
+            }
+
+            const newHomework = {
+                id: Date.now().toString(),
+                date: homeworkDate,
+                subject: homeworkSubject,
+                content: homeworkContent,
+                lastRemindedDate: null,
+                snoozedUntil: null
+            };
+
+            homeworks.push(newHomework);
+            saveHomeworks();
+            renderHomeworkUI();
+            hideHomeworkModal();
+            showCustomAlert("Đã thêm bài tập về nhà.");
+        };
+
+        const deleteHomework = (homeworkId) => {
+            showCustomAlert(
+                'Bạn có chắc muốn xóa bài tập này?',
+                false,
+                'Xác nhận xóa',
+                () => {
+                    homeworks = homeworks.filter(hw => hw.id !== homeworkId);
+                    saveHomeworks();
+                    renderHomeworkUI();
+                    showCustomAlert("Đã xóa bài tập.");
+                },
+                null,
+                true
+            );
+        };
+
+        const setupStudyListeners = () => {
+            const timetableSectionsDiv = document.getElementById('timetable-sections');
+            if (timetableSectionsDiv) {
+                timetableSectionsDiv.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (target.dataset.action === 'add-timetable-entry') {
+                        showTimetableModal(target.dataset.day);
+                    } else if (target.dataset.action === 'delete-timetable-entry') {
+                        deleteTimetableEntry(target.dataset.day, target.dataset.id);
+                    }
+                });
+            }
+            document.getElementById('save-timetable-btn')?.addEventListener('click', handleSaveTimetableEntry);
+            document.getElementById('cancel-timetable-btn')?.addEventListener('click', hideTimetableModal);
+
+            document.getElementById('add-homework-btn')?.addEventListener('click', showHomeworkModal);
+            document.getElementById('save-homework-btn')?.addEventListener('click', handleSaveHomework);
+            document.getElementById('cancel-homework-btn')?.addEventListener('click', hideHomeworkModal);
+
+            const homeworkListDiv = document.getElementById('homework-list');
+            if (homeworkListDiv) {
+                homeworkListDiv.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (target.dataset.action === 'delete-homework') {
+                        deleteHomework(target.dataset.id);
+                    }
+                });
+            }
+        };
+
+        const cleanupStudy = () => {
+        };
+
+
+        const DEFAULT_SNOOZE_DURATION = 5;
+        const DEFAULT_HOMEWORK_REMINDER_TIMES = [{hour: 13, minute: 0}];
+        const DEFAULT_DAILY_TIMETABLE_REMINDER_TIMES = [{hour: 18, minute: 0}];
+        const DEFAULT_THEME = 'dark';
+        const DEFAULT_ALARM_SOUND_SRC = null; // Represents the synthesized bell sound
+
+        let settings = {};
+
+        const getSettings = () => {
+            const storedSettings = localStorage.getItem('lnt_settings');
+            let parsedSettings = storedSettings ? JSON.parse(storedSettings) : {};
+
+            if (typeof parsedSettings.snoozeDuration === 'undefined') {
+                parsedSettings.snoozeDuration = DEFAULT_SNOOZE_DURATION;
+            }
+            if (!parsedSettings.homeworkReminderTimes || parsedSettings.homeworkReminderTimes.length === 0) {
+                parsedSettings.homeworkReminderTimes = [...DEFAULT_HOMEWORK_REMINDER_TIMES];
+            }
+            if (!parsedSettings.dailyTimetableReminderTimes || parsedSettings.dailyTimetableReminderTimes.length === 0) {
+                parsedSettings.dailyTimetableReminderTimes = [...DEFAULT_DAILY_TIMETABLE_REMINDER_TIMES];
+            }
+            // Loại bỏ cài đặt theme từ localStorage
+            // if (typeof parsedSettings.theme === 'undefined') {
+            //     parsedSettings.theme = DEFAULT_THEME;
+            // }
+            parsedSettings.theme = DEFAULT_THEME; // Luôn đặt về dark mode
+
+            if (typeof parsedSettings.defaultAlarmAudioSrc === 'undefined') {
+                parsedSettings.defaultAlarmAudioSrc = DEFAULT_ALARM_SOUND_SRC;
+            }
+            return parsedSettings;
+        };
+
+        const saveSettings = () => {
+            localStorage.setItem('lnt_settings', JSON.stringify(settings));
+        };
+
+        // Loại bỏ hàm toggleTheme
+        // const toggleTheme = (theme) => {
+        //     const body = document.body;
+        //     body.classList.remove('light-mode', 'dark-mode');
+
+        //     if (theme === 'light') {
+        //         body.classList.add('light-mode');
+        //     } else {
+        //         body.classList.add('dark-mode');
+        //     }
+        //     settings.theme = theme;
+        //     saveSettings();
+        // };
+
+        const renderTimeInputs = (times, idPrefix) => {
+            return times.map((time, index) => `
+                <div class="flex items-center space-x-2 mb-2" data-id="${idPrefix}-${index}">
+                    <input type="number" class="time-input hour-input w-1/2 p-3 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" value="${time.hour}" min="0" max="23">
+                    <span class="text-xl">:</span>
+                    <input type="number" class="time-input minute-input w-1/2 p-3 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" value="${time.minute}" min="0" max="59">
+                    <button class="delete-time-btn text-red-400 hover:text-red-300 p-2" data-index="${index}" data-type="${idPrefix}">❌</button>
+                </div>
+            `).join('');
+        };
+
+        const getTimesFromUI = (containerId) => {
+            const container = document.getElementById(containerId);
+            if (!container) return [];
+            const timeEntries = [];
+            container.querySelectorAll('.flex.items-center.space-x-2').forEach(div => {
+                const hour = parseInt(div.querySelector('.hour-input').value);
+                const minute = parseInt(div.querySelector('.minute-input').value);
+                if (!isNaN(hour) && !isNaN(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+                    timeEntries.push({ hour: hour, minute: minute });
+                }
+            });
+            return timeEntries;
+        };
+
+        const addTimeInput = (containerId, idPrefix, currentTimes, defaultTime) => {
+            currentTimes.push({ ...defaultTime });
+            const newIndex = currentTimes.length - 1;
+            const newDiv = document.createElement('div');
+            newDiv.className = "flex items-center space-x-2 mb-2";
+            newDiv.dataset.id = `${idPrefix}-${newIndex}`;
+            newDiv.innerHTML = `
+                <input type="number" class="time-input hour-input w-1/2 p-3 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" value="${defaultTime.hour}" min="0" max="23">
+                <span class="text-xl">:</span>
+                <input type="number" class="time-input minute-input w-1/2 p-3 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" value="${defaultTime.minute}" min="0" max="59">
+                <button class="delete-time-btn text-red-400 hover:text-red-300 p-2" data-index="${newIndex}" data-type="${idPrefix}">❌</button>
+            `;
+            document.getElementById(containerId).appendChild(newDiv);
+        };
+
+        const deleteTimeInput = (button, currentTimes) => {
+            const index = parseInt(button.dataset.index);
+            if (currentTimes.length > 1) {
+                currentTimes.splice(index, 1);
+                button.closest('.flex.items-center.space-x-2').remove();
+                renderSettingsUI();
+            } else {
+                showCustomAlert("Phải có ít nhất một thời gian báo thức.", true);
+            }
+        };
+
+
+        let defaultAlarmAudioFile = null; // Holds the Data URL for the default alarm sound
+
+        const handleDefaultAlarmAudioInput = (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const dataUrl = e.target.result;
+                    const FIVE_MB_IN_BYTES = 5 * 1024 * 1024;
+                    if (file.size > FIVE_MB_IN_BYTES) {
+                        showCustomAlert("Tệp âm thanh quá lớn (>5MB). Vui lòng chọn tệp nhỏ hơn để đảm bảo lưu trữ.", true);
+                        event.target.value = '';
+                        defaultAlarmAudioFile = null;
+                        document.getElementById('default-alarm-file-name-display').textContent = 'Chưa chọn tệp';
+                        return;
+                    }
+                    settings.defaultAlarmAudioSrc = dataUrl;
+                    saveSettings();
+                    showCustomAlert(`Đã chọn tệp: ${file.name}`);
+                    document.getElementById('default-alarm-file-name-display').textContent = file.name;
+                };
+                reader.onerror = () => {
+                    showCustomAlert("Không thể đọc tệp âm thanh.", true);
+                    defaultAlarmAudioFile = null;
+                    document.getElementById('default-alarm-file-name-display').textContent = 'Chưa chọn tệp';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                settings.defaultAlarmAudioSrc = null;
+                saveSettings();
+                document.getElementById('default-alarm-file-name-display').textContent = 'Chưa chọn tệp';
+            }
+        };
+
+        const resetDefaultAlarmSound = () => {
+            settings.defaultAlarmAudioSrc = null;
+            saveSettings();
+            renderSettingsUI(); // Re-render to clear file input and display
+            showCustomAlert('Âm báo thức mặc định đã được đặt lại.');
+        };
+
+        const renderSettingsUI = () => {
+            const settingsContainer = document.getElementById('settings-container');
+            if (!settingsContainer) return;
+
+            settings = getSettings();
+
+            const currentDefaultAudioFileName = settings.defaultAlarmAudioSrc ?
+                (settings.defaultAlarmAudioSrc.length > 50 ?
+                 'Tệp âm thanh đã chọn (' + settings.defaultAlarmAudioSrc.substring(0, 20) + '...)' :
+                 'Tệp âm thanh đã chọn') : 'Mặc định (Tiếng chuông)';
+
+
+            settingsContainer.innerHTML = `
+                <h2 class="text-3xl font-bold text-purple-400 mb-6">Cài Đặt</h2>
+                <div class="space-y-6">
+                    <!-- Loại bỏ phần chuyển đổi chế độ sáng -->
+                    <!--
+                    <div class="flex items-center justify-between p-4 bg-gray-800 rounded-lg shadow-md">
+                        <span class="text-lg">Chế độ Sáng</span>
+                        <label class="alarm-toggle">
+                            <input type="checkbox" id="theme-toggle" ${settings.theme === 'light' ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    -->
+
+                    <div class="p-4 bg-gray-800 rounded-lg shadow-md">
+                        <label for="snooze-duration-input" class="block text-lg font-bold text-gray-300 mb-2">Số phút báo lại (Báo thức):</label>
+                        <input type="number" id="snooze-duration-input" min="1" max="60" value="${settings.snoozeDuration}"
+                            class="w-full p-3 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <p class="text-sm text-gray-400 mt-1">Phút báo lại khi báo thức reo.</p>
+                    </div>
+
+                    <div class="p-4 bg-gray-800 rounded-lg shadow-md">
+                        <h3 class="text-lg font-bold text-gray-300 mb-2">Âm báo thức mặc định:</h3>
+                        <label for="default-alarm-audio-input" class="block w-full py-2 px-4 rounded-lg border-2 border-dashed border-gray-600 cursor-pointer text-gray-300 hover:border-blue-500 hover:text-blue-400 transition-colors duration-200">
+                            Chọn tệp âm thanh (MP3, WAV, OGG)
+                            <input type="file" id="default-alarm-audio-input" accept="audio/*" class="hidden">
+                        </label>
+                        <p id="default-alarm-file-name-display" class="text-sm text-gray-400 mt-2">${currentDefaultAudioFileName}</p>
+                        <div class="flex justify-center space-x-2 mt-4">
+                            <button id="play-default-alarm-sound" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200">
+                                Phát thử
+                            </button>
+                            <button id="reset-default-alarm-sound" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200">
+                                Đặt lại
+                            </button>
+                        </div>
+                    </div>
+
+
+                    <div class="p-4 bg-gray-800 rounded-lg shadow-md">
+                        <label class="block text-lg font-bold text-gray-300 mb-2">Thời gian báo bài tập:</label>
+                        <div id="homework-reminder-times-container">
+                            ${renderTimeInputs(settings.homeworkReminderTimes, 'homework-reminder')}
+                        </div>
+                        <button id="add-homework-reminder-time-btn" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg shadow-md transition-all duration-200">
+                            + Thêm thời gian
+                        </button>
+                        <p class="text-sm text-gray-400 mt-1">Hệ thống sẽ báo trước 1 ngày nếu có bài tập liên quan đến môn học ngày mai.</p>
+                    </div>
+
+                    <div class="p-4 bg-gray-800 rounded-lg shadow-md">
+                        <label class="block text-lg font-bold text-gray-300 mb-2">Giờ báo thời khóa biểu ngày mai:</label>
+                        <div id="daily-timetable-reminder-times-container">
+                            ${renderTimeInputs(settings.dailyTimetableReminderTimes, 'daily-timetable-reminder')}
+                        </div>
+                        <button id="add-daily-timetable-reminder-time-btn" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg shadow-md transition-all duration-200">
+                            + Thêm thời gian
+                        </button>
+                        <p class="text-sm text-gray-400 mt-1">Thông báo thời khóa biểu của ngày hôm sau.</p>
+                    </div>
+
+                    <button id="save-settings-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200">
+                        Lưu Cài Đặt
+                    </button>
+                </div>
+            `;
+            setupSettingsListeners();
+        };
+
+        const setupSettingsListeners = () => {
+            // const themeToggle = document.getElementById('theme-toggle'); // Loại bỏ biến này
+            const snoozeInput = document.getElementById('snooze-duration-input');
+            
+            const homeworkReminderTimesContainer = document.getElementById('homework-reminder-times-container');
+            const addHomeworkReminderTimeBtn = document.getElementById('add-homework-reminder-time-btn');
+
+            const dailyTimetableReminderTimesContainer = document.getElementById('daily-timetable-reminder-times-container');
+            const addDailyTimetableReminderTimeBtn = document.getElementById('add-daily-timetable-reminder-time-btn');
+
+            const defaultAlarmAudioInput = document.getElementById('default-alarm-audio-input');
+            const playDefaultAlarmSoundBtn = document.getElementById('play-default-alarm-sound');
+            const resetDefaultAlarmSoundBtn = document.getElementById('reset-default-alarm-sound');
+
+            const saveSettingsBtn = document.getElementById('save-settings-btn');
+
+            // Loại bỏ lắng nghe sự kiện cho themeToggle
+            // if (themeToggle) {
+            //     themeToggle.onchange = (event) => {
+            //         toggleTheme(event.target.checked ? 'light' : 'dark');
+            //     };
+            // }
+
+            if (addHomeworkReminderTimeBtn) {
+                addHomeworkReminderTimeBtn.onclick = () => addTimeInput('homework-reminder-times-container', 'homework-reminder', settings.homeworkReminderTimes, {hour: DEFAULT_HOMEWORK_REMINDER_TIMES[0].hour, minute: DEFAULT_HOMEWORK_REMINDER_TIMES[0].minute});
+            }
+            if (homeworkReminderTimesContainer) {
+                homeworkReminderTimesContainer.addEventListener('click', (event) => {
+                    if (event.target.classList.contains('delete-time-btn') && event.target.dataset.type === 'homework-reminder') {
+                        deleteTimeInput(event.target, settings.homeworkReminderTimes);
+                    }
+                });
+            }
+
+            if (addDailyTimetableReminderTimeBtn) {
+                addDailyTimetableReminderTimeBtn.onclick = () => addTimeInput('daily-timetable-reminder-times-container', 'daily-timetable-reminder', settings.dailyTimetableReminderTimes, {hour: DEFAULT_DAILY_TIMETABLE_REMINDER_TIMES[0].hour, minute: DEFAULT_DAILY_TIMETABLE_REMINDER_TIMES[0].minute});
+            }
+            if (dailyTimetableReminderTimesContainer) {
+                dailyTimetableReminderTimesContainer.addEventListener('click', (event) => {
+                    if (event.target.classList.contains('delete-time-btn') && event.target.dataset.type === 'daily-timetable-reminder') {
+                        deleteTimeInput(event.target, settings.dailyTimetableReminderTimes);
+                    }
+                });
+            }
+
+            if (defaultAlarmAudioInput) {
+                defaultAlarmAudioInput.addEventListener('change', handleDefaultAlarmAudioInput);
+            }
+            if (playDefaultAlarmSoundBtn) {
+                playDefaultAlarmSoundBtn.onclick = () => playAlarmSound(settings.defaultAlarmAudioSrc);
+            }
+            if (resetDefaultAlarmSoundBtn) {
+                resetDefaultAlarmSoundBtn.onclick = resetDefaultAlarmSound;
+            }
+
+            if (saveSettingsBtn) {
+                saveSettingsBtn.onclick = () => {
+                    settings.snoozeDuration = parseInt(snoozeInput.value) || DEFAULT_SNOOZE_DURATION;
+                    settings.homeworkReminderTimes = getTimesFromUI('homework-reminder-times-container');
+                    settings.dailyTimetableReminderTimes = getTimesFromUI('daily-timetable-reminder-times-container');
+
+                    if (settings.homeworkReminderTimes.length === 0) {
+                        settings.homeworkReminderTimes = [...DEFAULT_HOMEWORK_REMINDER_TIMES];
+                        showCustomAlert("Phải có ít nhất một thời gian báo bài tập, đã đặt lại mặc định.", true);
+                    }
+                    if (settings.dailyTimetableReminderTimes.length === 0) {
+                        settings.dailyTimetableReminderTimes = [...DEFAULT_DAILY_TIMETABLE_REMINDER_TIMES];
+                        showCustomAlert("Phải có ít nhất một thời gian báo thời khóa biểu, đã đặt lại mặc định.", true);
+                    }
+
+
+                    saveSettings();
+                    showCustomAlert('Cài đặt đã được lưu!');
+                    if (alarmSnoozeDurationDisplay) alarmSnoozeDurationDisplay.textContent = settings.snoozeDuration;
+                    if (homeworkSnoozeDurationDisplay) homeworkSnoozeDurationDisplay.textContent = settings.snoozeDuration;
+                    startAllReminders();
+                };
+            }
+        };
+
+        const cleanupSettings = () => {
+        };
+
+
+        const getAlarms = () => {
+            const storedAlarms = localStorage.getItem('lnt_alarms');
+            return storedAlarms ? JSON.parse(storedAlarms) : [];
+        };
+
+        const saveAlarms = (updatedAlarms) => {
+            localStorage.setItem('lnt_alarms', JSON.stringify(updatedAlarms));
+        };
+
+        const synth = new Tone.Synth({
+            oscillator: {
+                type: "sine"
+            },
+            envelope: {
+                attack: 0.005,
+                decay: 0.1,
+                sustain: 0.05,
+                release: 0.8
+            }
+        }).toDestination();
+
+        const playBellSound = () => {
+            if (Tone.context.state !== 'running') {
+                Tone.start();
+            }
+            synth.triggerAttackRelease("C4", "8n");
+            synth.triggerAttackRelease("E4", "8n", Tone.now() + 0.1);
+            synth.triggerAttackRelease("G4", "8n", Tone.now() + 0.2);
+            synth.triggerAttackRelease("C5", "8n", Tone.now() + 0.3);
+        }
+
+        const playAlarmSound = (audioSrc) => {
+            try {
+                if (alarmSound) {
+                    alarmSound.stop();
+                }
+                if (audioSrc) {
+                    const audio = new Audio(audioSrc);
+                    audio.play().catch(e => console.error("Error playing custom audio:", e));
+                    alarmSound = { stop: () => audio.pause() };
+                } else {
+                    playBellSound();
+                    // Đã sửa: Thay đổi synth.releaseAll() thành synth.triggerRelease(Tone.now())
+                    alarmSound = { stop: () => synth.triggerRelease(Tone.now()) };
+                }
+                // Stop sound after 30 seconds to prevent it from playing indefinitely
+                setTimeout(() => {
+                    if (alarmSound) {
+                        alarmSound.stop();
+                    }
+                }, 30000);
+            } catch (error) {
+                console.error("Error playing alarm sound:", error);
+                showCustomAlert("Đã đến giờ báo thức!", true, 'Báo thức!');
+            }
+        };
+
+        const stopAlarmSound = () => {
+            if (alarmSound) {
+                alarmSound.stop();
+                alarmSound = null;
+            }
+        };
+
+        const displayCurrentTime = () => {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const timeString = `${hours}:${minutes}:${seconds}`;
+
+            const currentTimeElement = document.getElementById('current-time');
+            if (currentTimeElement) {
+                currentTimeElement.textContent = timeString;
+            }
+        };
+
+        const updateMainNavbarActiveState = (currentContentTabName) => {
+            navButtons.forEach(btn => btn.classList.remove('active'));
+            if (currentContentTabName === 'cai-dat') {
+                document.getElementById('nav-cai-dat').classList.add('active');
+            } else {
+                document.getElementById('nav-trang-chu').classList.add('active');
+            }
+        };
+
+        const renderAppContent = (tabName) => {
+            // Cleanup previous tab's intervals/listeners before rendering new content
+            if (activeContentTab === 'dong-ho-bam-gio') {
+                cleanupStopwatch();
+            } else if (activeContentTab === 'dong-ho-the-gioi') {
+                cleanupWorldClock();
+            } else if (activeContentTab === 'hoc-tap') {
+                cleanupStudy();
+            } else if (activeContentTab === 'cai-dat') {
+                cleanupSettings();
+            }
+
+            appContent.innerHTML = ''; // Clear previous content
+
+            let contentHTML = '';
+
+            // Add back button for sub-pages
+            if (tabName !== 'trang-chu' && tabName !== 'cai-dat') {
+                contentHTML += `
+                    <header class="flex items-center justify-start p-4 bg-gray-800 rounded-xl mb-6 shadow-lg">
+                        <button class="text-blue-400 hover:text-blue-300 text-3xl font-bold p-2 rounded-full hover:bg-gray-700 transition-colors duration-200" onclick="renderAppContent('trang-chu')">
+                            &lsaquo;
+                        </button>
+                    </header>
+                `;
+            } else if (tabName === 'cai-dat') {
+                 // Header for Settings page
+                 contentHTML += `
+                    <header class="flex items-center justify-center p-4 bg-gray-800 rounded-xl mb-6 shadow-lg">
+                        <h2 class="text-3xl font-bold text-blue-400 flex-grow text-center">Cài Đặt</h2>
+                    </header>
+                `;
+            }
+
+            // Render content based on tabName
+            if (tabName === 'trang-chu') {
+                contentHTML += `
+                    <div class="text-center p-8 bg-gray-700 rounded-xl shadow-lg flex-grow flex flex-col justify-center items-center">
+                        <h2 class="text-3xl font-bold text-blue-300 mb-8">Các Chức Năng Chính</h2>
+                        <div class="grid grid-cols-2 gap-4 w-full max-w-md">
+                            <button class="feature-button bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-all duration-200" data-target-tab="dong-ho">
+                                <span class="icon text-4xl mb-2">⏰</span>
+                                <span>Đồng Hồ</span>
+                            </button>
+                            <button class="feature-button bg-orange-600 hover:bg-orange-700 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-all duration-200" data-target-tab="dong-ho-bam-gio">
+                                <span class="icon text-4xl mb-2">⏱️</span>
+                                <span>Bấm Giờ</span>
+                            </button>
+                            <button class="feature-button bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-all duration-200" data-target-tab="dong-ho-the-gioi">
+                                <span class="icon text-4xl mb-2">🌍</span>
+                                <span>Thế Giới</span>
+                            </button>
+                            <button class="feature-button bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-all duration-200" data-target-tab="hoc-tap">
+                                <span class="icon text-4xl mb-2">📚</span>
+                                <span>Học Tập</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (tabName === 'dong-ho') {
+                contentHTML += `
+                    <div class="text-center mb-8">
+                        <h2 id="current-time" class="text-6xl md:text-7xl font-extrabold mb-4 text-white"></h2>
+                        <p class="text-lg text-gray-400">Thời gian hiện tại</p>
+                    </div>
+
+                    <div class="mb-8 p-4 bg-gray-700 rounded-xl shadow-lg">
+                        <h3 class="text-2xl font-bold text-blue-300 mb-4">Thêm Báo Thức Mới</h3>
+                        <div class="flex items-center space-x-4 mb-4">
+                            <input type="number" id="alarm-hour" min="0" max="23" placeholder="Giờ" class="w-1/2 p-3 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="07">
+                            <input type="number" id="alarm-minute" min="0" max="59" placeholder="Phút" class="w-1/2 p-3 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="00">
+                        </div>
+                        <input type="text" id="alarm-label" placeholder="Tên báo thức (tùy chọn)" class="w-full p-3 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                        
+                        <div id="alarm-repeat-days" class="mb-4 p-4 bg-gray-800 rounded-xl shadow-inner">
+                            <h4 class="text-xl font-bold text-gray-300 mb-3">Lặp lại vào các ngày</h4>
+                            <div class="grid grid-cols-4 gap-2 text-sm">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" data-day="Mon" class="form-checkbox h-4 w-4 text-blue-600 bg-gray-700 border-gray-600 rounded">
+                                    <span>T2</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" data-day="Tue" class="form-checkbox h-4 w-4 text-blue-600 bg-gray-700 border-gray-600 rounded">
+                                    <span>T3</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" data-day="Wed" class="form-checkbox h-4 w-4 text-blue-600 bg-gray-700 border-gray-600 rounded">
+                                    <span>T4</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" data-day="Thu" class="form-checkbox h-4 w-4 text-blue-600 bg-gray-700 border-gray-600 rounded">
+                                    <span>T5</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" data-day="Fri" class="form-checkbox h-4 w-4 text-blue-600 bg-gray-700 border-gray-600 rounded">
+                                    <span>T6</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" data-day="Sat" class="form-checkbox h-4 w-4 text-blue-600 bg-gray-700 border-gray-600 rounded">
+                                    <span>T7</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" data-day="Sun" class="form-checkbox h-4 w-4 text-blue-600 bg-gray-700 border-gray-600 rounded">
+                                    <span>CN</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button id="add-alarm-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition-all duration-200">
+                            Thêm Báo Thức
+                        </button>
+                    </div>
+
+                    <div class="p-4 bg-gray-700 rounded-xl shadow-lg">
+                        <h3 class="text-2xl font-bold text-blue-300 mb-4">Các Báo Thức Đã Đặt</h3>
+                        <div id="alarms-list">
+                            <p class="text-gray-400 text-center" id="no-alarms-message">Chưa có báo thức nào.</p>
+                        </div>
+                    </div>
+                `;
+            } else if (tabName === 'dong-ho-bam-gio') {
+                contentHTML += `
+                    <div class="text-center p-8 bg-gray-700 rounded-xl shadow-lg flex-grow flex flex-col items-center">
+                        <h2 class="text-3xl font-bold text-orange-400 mb-8">Đồng Hồ Bấm Giờ</h2>
+                        <div class="relative w-full mb-8">
+                            <span id="stopwatch-display" class="text-3xl font-extrabold text-white">00:00:00.00</span>
+                        </div>
+                        <div class="flex justify-center space-x-4 w-full max-w-sm mb-8">
+                            <button id="stopwatch-start-stop-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200">
+                                Bắt đầu
+                            </button>
+                            <button id="stopwatch-lap-btn" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200">
+                                Tách
+                            </button>
+                            <button id="stopwatch-reset-btn" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200">
+                                Đặt lại
+                            </button>
+                        </div>
+                        <div class="flex-grow w-full overflow-y-auto p-4 bg-gray-800 rounded-lg shadow-inner">
+                            <h3 class="text-xl font-bold text-gray-300 mb-4">Các Mốc Tách</h3>
+                            <div id="lap-times-list" class="space-y-2 text-left">
+                                <p class="text-gray-400 text-center">Chưa có mốc tách nào.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tabName === 'dong-ho-the-gioi') {
+                contentHTML += `
+                    <div class="text-center p-6 bg-gray-700 rounded-xl shadow-lg flex-grow flex flex-col">
+                        <h2 class="text-3xl font-bold text-teal-400 mb-6">Đồng Hồ Thế Giới</h2>
+
+                        <div class="mb-6 p-4 bg-gray-800 rounded-lg shadow-inner">
+                            <h3 class="text-xl font-bold text-gray-300 mb-4">Đã ghim (${pinnedTimezones.length}/${MAX_PINNED_TIMEZONES})</h3>
+                            <div id="pinned-timezones-list" class="space-y-3">
+                                <div class="flex justify-between items-center bg-gray-800 p-4 rounded-lg shadow-md">
+                                    <span class="text-xl text-gray-300">Hồ Chí Minh:</span>
+                                    <span id="hcm-time" class="text-3xl font-bold text-white">--:--:--</span>
+                                </div>
+                                <div id="dynamic-pinned-content" class="space-y-3">
+                                    <p class="text-gray-400 text-center" id="no-pinned-message">Chưa có múi giờ nào được ghim.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-grow p-4 bg-gray-800 rounded-xl shadow-inner">
+                            <h3 class="text-xl font-bold text-teal-300 mb-4">Tìm kiếm múi giờ</h3>
+                            <input type="text" id="timezone-search-input" placeholder="Tìm kiếm theo thành phố/khu vực..."
+                                class="w-full p-3 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 mb-4">
+                            <div id="timezone-search-results" class="space-y-2 overflow-y-auto max-h-64">
+                                <p class="text-gray-400 text-center">Nhập ít nhất 2 ký tự để tìm kiếm.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tabName === 'hoc-tap') {
+                contentHTML += `
+                    <div class="flex-grow flex flex-col space-y-6">
+                        <div class="p-4 bg-gray-700 rounded-xl shadow-lg">
+                            <h3 class="text-2xl font-bold text-blue-300 mb-4">Thời Khóa Biểu</h3>
+                            <div id="timetable-sections" class="space-y-3">
+                            </div>
+                        </div>
+
+                        <div class="p-4 bg-gray-700 rounded-xl shadow-lg flex-grow flex flex-col">
+                            <h3 class="text-2xl font-bold text-green-400 mb-4">Bài Tập Về Nhà (BTVN)</h3>
+                            <button id="add-homework-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-md transition-all duration-200 mb-4 flex items-center justify-center space-x-2">
+                                <span class="text-2xl">+</span>
+                                <span>Thêm Bài Tập</span>
+                            </button>
+                            <div id="homework-list" class="flex-grow overflow-y-auto space-y-3">
+                                <p class="text-gray-400 text-center" id="no-homework-message">Chưa có bài tập nào.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tabName === 'cai-dat') {
+                contentHTML += `
+                    <div id="settings-container" class="text-center p-8 bg-gray-700 rounded-xl shadow-lg">
+                    </div>
+                `;
+            }
+            appContent.innerHTML = contentHTML;
+
+            // Setup listeners based on the rendered tab
+            if (tabName === 'trang-chu') {
+                const featureButtons = document.querySelectorAll('.feature-button');
+                featureButtons.forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        const targetTab = event.currentTarget.dataset.targetTab;
+                        renderAppContent(targetTab);
+                    });
+                });
+            } else if (tabName === 'dong-ho') {
+                setInterval(displayCurrentTime, 1000);
+                updateAlarmListUI();
+                setupAlarmListeners();
+            } else if (tabName === 'dong-ho-bam-gio') {
+                setupStopwatchListeners();
+            } else if (tabName === 'dong-ho-the-gioi') {
+                setupWorldClockListeners();
+            } else if (tabName === 'hoc-tap') {
+                setupStudyListeners();
+                renderTimetableUI();
+                renderHomeworkUI();
+            } else if (tabName === 'cai-dat') {
+                renderSettingsUI();
+            }
+
+            activeContentTab = tabName;
+            updateMainNavbarActiveState(activeContentTab);
+        };
+
+        // Custom alert function
+        const showCustomAlert = (message, isError = false, title = '', onConfirm = null, onCancel = null, showConfirmButtons = false) => {
+            const alertModal = document.createElement('div');
+            alertModal.className = `fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[1001] opacity-0 transition-opacity duration-300`;
+
+            let buttonsHtml = '';
+            if (showConfirmButtons) {
+                buttonsHtml = `
+                    <div class="flex justify-center space-x-4 mt-6">
+                        <button id="alert-confirm-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-lg shadow-md transition-all duration-200">Xác nhận</button>
+                        <button id="alert-cancel-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-5 rounded-lg shadow-md transition-all duration-200">Hủy</button>
+                    </div>
+                `;
+            } else {
+                buttonsHtml = `
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-lg shadow-md transition-all duration-200" onclick="this.closest('.fixed').remove()">Đóng</button>
+                `;
+            }
+
+            alertModal.innerHTML = `
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl max-w-sm w-11/12 text-center transform scale-95 transition-transform duration-300">
+                    ${title ? `<h3 class="text-xl font-bold ${isError ? 'text-red-400' : 'text-blue-400'} mb-3">${title}</h3>` : ''}
+                    <p class="text-white mb-6">${message}</p>
+                    ${buttonsHtml}
+                </div>
+            `;
+            document.body.appendChild(alertModal);
+
+            // Animate in
+            setTimeout(() => {
+                alertModal.style.opacity = '1';
+                alertModal.querySelector('div').style.transform = 'scale(1)';
+            }, 10);
+
+            // Setup button listeners for confirmation dialogs
+            if (showConfirmButtons) {
+                const confirmBtn = alertModal.querySelector('#alert-confirm-btn');
+                const cancelBtn = alertModal.querySelector('#alert-cancel-btn');
+
+                confirmBtn.onclick = () => {
+                    if (onConfirm) onConfirm();
+                    alertModal.remove();
+                };
+                cancelBtn.onclick = () => {
+                    if (onCancel) onCancel();
+                    alertModal.remove();
+                };
+            } else {
+                // Auto-dismiss non-error alerts after a few seconds
+                if (!isError && !showConfirmButtons) {
+                    setTimeout(() => {
+                        if (alertModal.parentNode) { // Check if element still exists in DOM
+                            alertModal.style.opacity = '0';
+                            alertModal.querySelector('div').style.transform = 'scale(0.95)';
+                            alertModal.addEventListener('transitionend', () => alertModal.remove());
+                        }
+                    }, 5000); // 5 seconds duration
+                }
+            }
+        };
+
+
+        // System notification function
+        const showSystemNotification = (title, body) => {
+            if (Notification.permission === "granted") {
+                new Notification(title, { body: body, icon: 'https://placehold.co/48x48/4a90e2/ffffff?text=🔔' });
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        new Notification(title, { body: body, icon: 'https://placehold.co/48x48/4a90e2/ffffff?text=🔔' });
+                    }
+                });
+            }
+        };
+
+        // Renders the list of alarms in the UI
+        const updateAlarmListUI = () => {
+            const alarmsListDiv = document.getElementById('alarms-list');
+            if (!alarmsListDiv) return;
+
+            alarms = getAlarms();
+
+            if (alarms.length === 0) {
+                alarmsListDiv.innerHTML = `<p class="text-gray-400 text-center" id="no-alarms-message">Chưa có báo thức nào.</p>`;
+                return;
+            }
+
+            alarmsListDiv.innerHTML = alarms.map(alarm => {
+                const dayDisplay = alarm.repeatDays && alarm.repeatDays.length > 0
+                    ? alarm.repeatDays.map(day => {
+                        const dayMap = {'Mon':'T2', 'Tue':'T3', 'Wed':'T4', 'Thu':'T5', 'Fri':'T6', 'Sat':'T7', 'Sun':'CN'};
+                        return dayMap[day] || '';
+                    }).join(', ')
+                    : 'Một lần';
+
+                return `
+                    <div class="alarm-item group hover:bg-gray-600 transition-colors duration-200" data-id="${alarm.id}">
+                        <div class="flex items-center">
+                            <span class="alarm-time ${alarm.enabled ? 'text-white' : 'text-gray-500 line-through'}">
+                                ${alarm.time}
+                            </span>
+                            <span class="ml-4 text-lg text-gray-400 ${alarm.enabled ? '' : 'line-through'}">
+                                ${alarm.label ? alarm.label : 'Báo thức'}
+                            </span>
+                            <span class="ml-2 text-sm text-gray-500 ${alarm.enabled ? '' : 'line-through'}">
+                                (${dayDisplay})
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <label class="alarm-toggle">
+                                <input type="checkbox" ${alarm.enabled ? 'checked' : ''} data-action="toggle-alarm">
+                                <span class="slider"></span>
+                            </label>
+                            <button data-action="delete-alarm" class="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            appContent.scrollTop = 0; // Scroll to top after updating list
+        };
+
+        // Handles adding a new alarm
+        const handleAddAlarm = () => {
+            const hourInput = document.getElementById('alarm-hour');
+            const minuteInput = document.getElementById('alarm-minute');
+            const labelInput = document.getElementById('alarm-label');
+            const repeatDaysCheckboxes = document.querySelectorAll('#alarm-repeat-days input[type="checkbox"]');
+
+            const hour = String(parseInt(hourInput.value || '0', 10)).padStart(2, '0');
+            const minute = String(parseInt(minuteInput.value || '0', 10)).padStart(2, '0');
+            const label = labelInput.value.trim();
+            const selectedRepeatDays = Array.from(repeatDaysCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.dataset.day);
+
+            if (isNaN(parseInt(hour)) || isNaN(parseInt(minute)) || parseInt(hour) < 0 || parseInt(hour) > 23 || parseInt(minute) < 0 || parseInt(minute) > 59) {
+                console.error("Invalid time. Please enter hour (0-23) and minute (0-59).");
+                showCustomAlert("Thời gian không hợp lệ. Vui lòng nhập giờ (0-23) và phút (0-59).", true);
+                return;
+            }
+
+            const newAlarm = {
+                id: Date.now().toString(),
+                time: `${hour}:${minute}`,
+                label: label,
+                enabled: true,
+                repeatDays: selectedRepeatDays,
+                audioSrc: settings.defaultAlarmAudioSrc // Use the default audio from settings
+            };
+
+            alarms.push(newAlarm);
+            saveAlarms(alarms);
+            updateAlarmListUI();
+
+            // Reset input fields
+            hourInput.value = '07';
+            minuteInput.value = '00';
+            labelInput.value = '';
+            repeatDaysCheckboxes.forEach(cb => cb.checked = false);
+
+            showCustomAlert("Đã thêm báo thức mới!");
+            console.log("Alarm added:", newAlarm);
+        };
+
+        // Handles toggling or deleting an alarm
+        const handleAlarmAction = (event) => {
+            const target = event.target;
+            const alarmItem = target.closest('.alarm-item');
+            if (!alarmItem) return;
+
+            const alarmId = alarmItem.dataset.id;
+            alarms = getAlarms();
+            const alarmIndex = alarms.findIndex(a => a.id === alarmId);
+
+            if (alarmIndex === -1) return;
+
+            if (target.dataset.action === 'toggle-alarm') {
+                alarms[alarmIndex].enabled = target.checked;
+                saveAlarms(alarms);
+                updateAlarmListUI();
+                console.log(`Báo thức ${alarmId} đã ${target.checked ? 'bật' : 'tắt'}.`);
+                showCustomAlert(`Báo thức đã ${target.checked ? 'bật' : 'tắt'}.`);
+            } else if (target.dataset.action === 'delete-alarm') {
+                showCustomAlert(
+                    'Bạn có chắc muốn xóa báo thức này?',
+                    false, // Not an error
+                    'Xác nhận xóa',
+                    () => { // onConfirm callback
+                        alarms.splice(alarmIndex, 1);
+                        saveAlarms(alarms);
+                        updateAlarmListUI();
+                        showCustomAlert(`Báo thức đã bị xóa.`);
+                        console.log(`Báo thức ${alarmId} đã bị xóa.`);
+                    },
+                    null, // onCancel callback (optional)
+                    true // Show confirm buttons
+                );
+            }
+        };
+
+
+        // Sets up event listeners for alarm functionalities
+        const setupAlarmListeners = () => {
+            const addAlarmBtn = document.getElementById('add-alarm-btn');
+            if (addAlarmBtn) {
+                addAlarmBtn.onclick = handleAddAlarm;
+            }
+
+            const alarmsListDiv = document.getElementById('alarms-list');
+            if (alarmsListDiv) {
+                alarmsListDiv.onclick = handleAlarmAction;
+            }
+        };
+
+        // Checks and rings active alarms
+        const checkAndRingAlarms = () => {
+            const now = new Date();
+            const currentHour = String(now.getHours()).padStart(2, '0');
+            const currentMinute = String(now.getMinutes()).padStart(2, '0');
+            const currentTime = `${currentHour}:${currentMinute}`;
+
+            const daysOfWeekMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const currentDayString = daysOfWeekMap[now.getDay()];
+
+            alarms = getAlarms();
+
+            for (const alarm of alarms) {
+                // Check if alarm is enabled, matches current time, and is not already ringing
+                if (alarm.enabled && alarm.time === currentTime && alarm.id !== currentRingingAlarmId) {
+                    const isRepeatingAlarm = alarm.repeatDays && alarm.repeatDays.length > 0;
+                    const shouldRingToday = isRepeatingAlarm ? alarm.repeatDays.includes(currentDayString) : true;
+
+                    if (shouldRingToday) {
+                        currentRingingAlarmId = alarm.id; // Set current ringing alarm ID
+                        console.log(`Báo thức "${alarm.label || alarm.time}" đang reo!`);
+                        showAlarmModal(alarm);
+                        playAlarmSound(alarm.audioSrc || settings.defaultAlarmAudioSrc); // Use alarm's specific audio or default from settings
+
+                        showSystemNotification('Báo thức!', `${alarm.label || 'Báo thức của bạn!'} (${alarm.time})`);
+
+                        // If it's a one-time alarm, disable it after ringing
+                        if (!isRepeatingAlarm) {
+                            alarm.enabled = false;
+                            saveAlarms(alarms);
+                            updateAlarmListUI();
+                            console.log(`One-time alarm "${alarm.label || alarm.time}" đã bị tắt.`);
+                        }
+                        break; // Stop after ringing the first active alarm
+                    }
+                }
+            }
+        };
+
+        // Displays the alarm modal
+        const showAlarmModal = (alarm) => {
+            alarmModalTime.textContent = alarm.time;
+            alarmModalLabel.textContent = alarm.label || 'Báo thức của bạn!';
+            alarmModalOverlay.classList.add('active');
+            settings = getSettings(); // Ensure settings are up-to-date for snooze duration
+            if (alarmSnoozeDurationDisplay) alarmSnoozeDurationDisplay.textContent = settings.snoozeDuration;
+        };
+
+        // Handles dismissing the alarm
+        const handleDismissAlarm = () => {
+            console.log("handleDismissAlarm called."); // Debugging log
+            stopAlarmSound();
+            alarmModalOverlay.classList.remove('active');
+            currentRingingAlarmId = null; // Reset ringing alarm ID
+            console.log("Alarm dismissed logic completed."); // Debugging log
+            showCustomAlert("Báo thức đã tắt.", false); // Explicit feedback to user
+        };
+
+        // Handles snoozing the alarm
+        const handleSnoozeAlarm = () => {
+            console.log("handleSnoozeAlarm called."); // Debugging log
+            stopAlarmSound();
+            alarmModalOverlay.classList.remove('active');
+
+            if (currentRingingAlarmId) {
+                const alarmIndex = alarms.findIndex(a => a.id === currentRingingAlarmId);
+                if (alarmIndex !== -1) {
+                    const originalAlarm = alarms[alarmIndex];
+                    const now = new Date();
+                    settings = getSettings();
+                    now.setMinutes(now.getMinutes() + settings.snoozeDuration); // Add snooze duration
+                    const newHour = String(now.getHours()).padStart(2, '0');
+                    const newMinute = String(now.getMinutes()).padStart(2, '0');
+
+                    originalAlarm.time = `${newHour}:${newMinute}`; // Update alarm time
+                    originalAlarm.enabled = true; // Re-enable for snooze
+                    saveAlarms(alarms);
+                    updateAlarmListUI();
+                    showCustomAlert(`Báo thức sẽ báo lại lúc ${originalAlarm.time}`);
+                    console.log(`Alarm ${originalAlarm.label || originalAlarm.time} will snooze until ${originalAlarm.time}`); // Debugging log
+                }
+            }
+            currentRingingAlarmId = null; // Reset ringing alarm ID
+            console.log("Alarm snooze logic completed."); // Debugging log
+        };
+
+        // Displays the homework reminder modal
+        const showHomeworkReminderModal = (homework) => {
+            homeworkReminderModalSubject.textContent = `Môn: ${homework.subject}`;
+            homeworkReminderModalContent.textContent = `Nội dung: ${homework.content}`;
+            homeworkReminderModalOverlay.classList.add('active');
+            settings = getSettings();
+            if (homeworkSnoozeDurationDisplay) homeworkSnoozeDurationDisplay.textContent = settings.snoozeDuration;
+        };
+
+        // Handles dismissing the homework reminder
+        const handleDismissHomeworkReminder = () => {
+            homeworkReminderModalOverlay.classList.remove('active');
+            currentRingingHomeworkId = null;
+            showCustomAlert("Nhắc nhở bài tập đã tắt.", false);
+        };
+
+        // Handles snoozing the homework reminder
+        const handleSnoozeHomeworkReminder = () => {
+            homeworkReminderModalOverlay.classList.remove('active');
+
+            if (currentRingingHomeworkId) {
+                const homeworkIndex = homeworks.findIndex(hw => hw.id === currentRingingHomeworkId);
+                if (homeworkIndex !== -1) {
+                    const originalHomework = homeworks[homeworkIndex];
+                    settings = getSettings();
+                    originalHomework.snoozedUntil = Date.now() + (settings.snoozeDuration * 60 * 1000); // Set snooze time
+                    saveHomeworks();
+                    showCustomAlert(`Nhắc nhở bài tập cho môn ${originalHomework.subject} sẽ báo lại sau ${settings.snoozeDuration} phút.`);
+                }
+            }
+            currentRingingHomeworkId = null;
+        };
+
+        // Checks for homework reminders
+        const checkHomeworkReminders = () => {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const todayDateString = now.toISOString().split('T')[0];
+
+            settings = getSettings();
+            const reminderTimes = settings.homeworkReminderTimes || [];
+
+            // Prevent multiple reminders for the same minute slot on the same day
+            const lastHomeworkCheck = localStorage.getItem('lnt_last_homework_check');
+            if (lastHomeworkCheck === `${todayDateString}-${currentHour}:${currentMinute}`) {
+                return;
+            }
+
+            let shouldSetLastCheck = false;
+
+            reminderTimes.forEach(reminderTime => {
+                if (currentHour === reminderTime.hour && currentMinute === reminderTime.minute) {
+                    homeworks = getHomeworks();
+                    timetables = getTimetables();
+
+                    const tomorrow = new Date(now);
+                    tomorrow.setDate(now.getDate() + 1);
+                    const daysOfWeekMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const tomorrowDayKey = daysOfWeekMap[tomorrow.getDay()];
+                    const tomorrowTimetable = timetables[tomorrowDayKey] || [];
+
+                    let remindedHomeworksForThisSlot = [];
+
+                    homeworks.forEach(hw => {
+                        // Only remind if not already reminded today and not currently snoozed
+                        if (hw.lastRemindedDate === todayDateString || (hw.snoozedUntil && hw.snoozedUntil > Date.now())) {
+                            return;
+                        }
+
+                        // Check if homework subject is in tomorrow's timetable
+                        const isSubjectInTomorrowTimetable = tomorrowTimetable.some(entry => entry.subject === hw.subject);
+
+                        if (isSubjectInTomorrowTimetable) {
+                            remindedHomeworksForThisSlot.push(hw);
+                            hw.lastRemindedDate = todayDateString; // Mark as reminded today
+                            hw.snoozedUntil = null; // Clear any snooze
+                        }
+                    });
+
+                    if (remindedHomeworksForThisSlot.length > 0) {
+                        const homeworkToRemind = remindedHomeworksForThisSlot[0]; // Remind about the first relevant homework
+                        currentRingingHomeworkId = homeworkToRemind.id;
+                        showHomeworkReminderModal(homeworkToRemind);
+                        saveHomeworks(); // Save updated homeworks (with lastRemindedDate)
+                        showSystemNotification('Nhắc nhở Bài Tập!', `Môn: ${homeworkToRemind.subject}\nNội dung: ${homeworkToRemind.content}`);
+                        shouldSetLastCheck = true; // Mark that a reminder was sent for this slot
+                    }
+                }
+            });
+
+            if (shouldSetLastCheck) {
+                localStorage.setItem('lnt_last_homework_check', `${todayDateString}-${currentHour}:${currentMinute}`);
+            }
+        };
+
+        // Checks for daily timetable reminders
+        const checkDailyTimetableReminder = () => {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const todayDateString = now.toISOString().split('T')[0];
+
+            settings = getSettings();
+            const reminderTimes = settings.dailyTimetableReminderTimes || [];
+
+            // Prevent multiple reminders for the same minute slot on the same day
+            const lastTimetableCheck = localStorage.getItem('lnt_last_daily_timetable_check');
+            if (lastTimetableCheck === `${todayDateString}-${currentHour}:${currentMinute}`) {
+                return;
+            }
+            
+            let shouldSetLastCheck = false;
+
+            reminderTimes.forEach(reminderTime => {
+                if (currentHour === reminderTime.hour && currentMinute === reminderTime.minute) {
+                    timetables = getTimetables();
+
+                    const tomorrow = new Date(now);
+                    tomorrow.setDate(now.getDate() + 1);
+                    const daysOfWeekMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const tomorrowDayKey = daysOfWeekMap[tomorrow.getDay()];
+                    const tomorrowTimetable = timetables[tomorrowDayKey] || [];
+
+                    let reminderMessage = `Thời khóa biểu ngày mai (${daysOfWeekFull[tomorrowDayKey]}):\n`;
+
+                    if (tomorrowTimetable.length === 0) {
+                        reminderMessage += 'Không có môn học nào được lên lịch.\n';
+                    } else {
+                        tomorrowTimetable.sort((a, b) => {
+                            const aIsMorning = a.period.startsWith('S');
+                            const bIsMorning = b.period.startsWith('S');
+                            const aPeriodNum = parseInt(a.period.substring(1));
+                            const bPeriodNum = parseInt(b.period.substring(1));
+
+                            if (aIsMorning && !bIsMorning) return -1;
+                            if (!aIsMorning && bIsMorning) return 1;
+                            return aPeriodNum - bPeriodNum;
+                        });
+                        
+                        tomorrowTimetable.forEach(entry => {
+                            const timeDisplay = periods[entry.period] || '';
+                            const periodDisplay = entry.period.startsWith('S') ? `Sáng, Tiết ${entry.period.substring(1)}` : `Chiều, Tiết ${entry.period.substring(1)}`;
+                            reminderMessage += `- ${periodDisplay} (${timeDisplay}): ${entry.subject}\n`;
+                        });
+                    }
+                    showSystemNotification('Thời Khóa Biểu Ngày Mai', reminderMessage);
+                    shouldSetLastCheck = true; // Mark that a reminder was sent for this slot
+                }
+            });
+
+            if (shouldSetLastCheck) {
+                localStorage.setItem('lnt_last_daily_timetable_check', `${todayDateString}-${currentHour}:${currentMinute}`);
+            }
+        };
+
+        // Starts all recurring reminder checks
+        const startAllReminders = () => {
+            clearInterval(homeworkReminderCheckInterval);
+            clearInterval(dailyTimetableReminderCheckInterval);
+
+            // Check every minute for reminders
+            homeworkReminderCheckInterval = setInterval(checkHomeworkReminders, 60 * 1000);
+            dailyTimetableReminderCheckInterval = setInterval(checkDailyTimetableReminder, 60 * 1000);
+
+            // Run checks immediately on startup to catch any missed reminders
+            setTimeout(() => {
+                checkHomeworkReminders();
+                checkDailyTimetableReminder();
+            }, 1000);
+        };
+
+        // Initialize app on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', () => {
+            settings = getSettings(); // Load initial settings
+            
+            // Loại bỏ lời gọi toggleTheme(settings.theme)
+            // toggleTheme(settings.theme); // Apply saved theme
+            document.body.classList.add('dark-mode'); // Luôn đặt về dark mode
+
+            renderAppContent('trang-chu'); // Render initial content to homepage
+
+            // Setup main navigation button listeners
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const clickedNavId = button.id.replace('nav-', '');
+                    renderAppContent(clickedNavId);
+                });
+            });
+
+            // Setup modal button listeners
+            alarmDismissBtn.addEventListener('click', handleDismissAlarm);
+            alarmSnoozeBtn.addEventListener('click', handleSnoozeAlarm);
+
+            homeworkReminderDismissBtn.addEventListener('click', handleDismissHomeworkReminder);
+            homeworkReminderSnoozeBtn.addEventListener('click', handleSnoozeHomeworkReminder);
+
+            // Check alarms every 10 seconds
+            setInterval(checkAndRingAlarms, 10 * 1000);
+
+            startAllReminders(); // Start daily/homework reminder checks
+
+            // Update displayed snooze duration on modals if elements exist
+            if (alarmSnoozeDurationDisplay) alarmSnoozeDurationDisplay.textContent = settings.snoozeDuration;
+            if (homeworkSnoozeDurationDisplay) homeworkSnoozeDurationDisplay.textContent = settings.snoozeDuration;
+
+            // Request notification permission if not already granted or denied
+            if (Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        });
+    </script>
+</body>
+</html>
